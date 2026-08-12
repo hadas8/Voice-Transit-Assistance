@@ -13,6 +13,7 @@ import { HandButton } from './components/HandButton';
 import { VoiceStatusCard } from './components/VoiceStatusCard';
 import { TripResultCard } from './components/TripResultCard';
 import { AccessibilityToolbar } from './components/AccessibilityToolbar';
+import { getAssistantResponse } from './services/assistantFallback';
 
 export default function App() {
   // State management
@@ -161,21 +162,20 @@ export default function App() {
     setVoiceState('THINKING');
 
     try {
-      const response = await fetch('/api/assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentStep,
-          userSpeech: speech,
-          tripState: tripStateRef.current,
-          language: settings.language,
-        }),
-      });
-
-      const data = await response.json();
+      // Runs in the browser rather than calling the server, so the app can be
+      // served as a static site. Same logic the server used when no Gemini key
+      // was configured.
+      const data = getAssistantResponse(
+        currentStep,
+        speech,
+        tripStateRef.current,
+        settings.language
+      );
 
       const nextAssistantMsg = data.assistantMessage;
-      const nextStep = data.nextStep || data.step;
+      // Was implicitly `any` when this came back from response.json(); the
+      // values are the same ConversationStep strings the server returned.
+      const nextStep = (data.nextStep || data.step) as ConversationStep;
 
       // Update accumulated trip state
       if (data.extractedAccessibility) {
